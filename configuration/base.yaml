@@ -1,0 +1,4 @@
+iotics:
+  resolver_address: https://did.prd.iotics.com
+  token_duration: 86400
+  agent_key_name: "00"
