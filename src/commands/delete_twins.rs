@@ -31,6 +31,7 @@ where
     stdout: &'a mut W,
     opts: DeleteTwinsArgs,
     settings: Settings,
+    twins_found: usize,
 }
 
 impl<'a, W> DeleteTwins<'a, W>
@@ -43,6 +44,7 @@ where
             stdout,
             opts,
             settings,
+            twins_found: 0,
         })
     }
 
@@ -67,8 +69,6 @@ where
         )
         .await?;
 
-        let mut twins_count = 0;
-
         while let Some(response) = stream.recv().await {
             match response {
                 Ok(page) => {
@@ -86,7 +86,6 @@ where
 
                         for twin_did in twins_dids {
                             self.delete_twin(&token, &twin_did, false).await?;
-                            twins_count += 1;
                         }
                     }
                 }
@@ -101,7 +100,7 @@ where
         writeln!(
             self.stdout,
             "Found and deleted {} twins for model {}.",
-            Paint::yellow(twins_count),
+            Paint::yellow(self.twins_found),
             Paint::blue(&self.opts.model_did),
         )?;
         self.stdout.flush()?;
@@ -127,6 +126,10 @@ where
             write!(self.stdout, "Deleting twin {}... ", twin_did)?;
         }
 
+        if !self.opts.verbose && !force_verbose && self.twins_found & 32 == 0 {
+            writeln!(self.stdout)?;
+        }
+
         let result = delete_twin(&self.settings.iotics.host_address, token, twin_did).await;
 
         match result {
@@ -147,6 +150,8 @@ where
         };
 
         self.stdout.flush()?;
+
+        self.twins_found += 1;
 
         Ok(())
     }
