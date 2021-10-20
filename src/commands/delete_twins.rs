@@ -32,6 +32,7 @@ where
     opts: DeleteTwinsArgs,
     settings: Settings,
     twins_found: usize,
+    twins_deleted: usize,
 }
 
 impl<'a, W> DeleteTwins<'a, W>
@@ -45,6 +46,7 @@ where
             opts,
             settings,
             twins_found: 0,
+            twins_deleted: 0,
         })
     }
 
@@ -99,8 +101,9 @@ where
         writeln!(self.stdout)?;
         writeln!(
             self.stdout,
-            "Found and deleted {} twins for model {}.",
+            "Found {} and deleted {} twins for model {}.",
             Paint::yellow(self.twins_found),
+            Paint::red(self.twins_deleted),
             Paint::blue(&self.opts.model_did),
         )?;
         self.stdout.flush()?;
@@ -122,27 +125,33 @@ where
         twin_did: &str,
         force_verbose: bool,
     ) -> Result<(), anyhow::Error> {
-        if self.opts.verbose || force_verbose {
+        let verbose = self.opts.verbose || force_verbose;
+
+        if verbose {
             write!(self.stdout, "Deleting twin {}... ", twin_did)?;
         }
 
-        if !self.opts.verbose && !force_verbose && self.twins_found & 32 == 0 {
+        if !verbose && self.twins_found % 64 == 0 {
             writeln!(self.stdout)?;
         }
 
         let result = delete_twin(&self.settings.iotics.host_address, token, twin_did).await;
 
+        self.twins_found += 1;
+
         match result {
             Ok(_) => {
-                if self.opts.verbose || force_verbose {
+                self.twins_deleted += 1;
+
+                if verbose {
                     writeln!(self.stdout, "{}", Paint::green("OK"))?;
                 } else {
                     write!(self.stdout, "{}", Paint::green("."))?;
                 }
             }
             Err(e) => {
-                if self.opts.verbose || force_verbose {
-                    writeln!(self.stdout, "{:?}", Paint::green(e))?;
+                if verbose {
+                    writeln!(self.stdout, "{:?}", Paint::red(e))?;
                 } else {
                     write!(self.stdout, "{}", Paint::red("E"))?;
                 }
@@ -150,8 +159,6 @@ where
         };
 
         self.stdout.flush()?;
-
-        self.twins_found += 1;
 
         Ok(())
     }
