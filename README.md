@@ -22,7 +22,8 @@ cargo run -- --help
 ```
 
 ```bash
-cargo run -- delete-twins --help
+cargo run -- delete-twins-by-model --help
+cargo run -- delete-all-twins --help
 ```
 
 [toolchain]: https://rustup.rs

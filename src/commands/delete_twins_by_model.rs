@@ -1,15 +1,18 @@
-use std::io;
+use async_trait::async_trait;
+use std::{io, marker};
 use structopt::StructOpt;
 use yansi::Paint;
 
-use iotics_grpc_client::{
-    delete_twin, search, Filter, Property, Scope, Uri, Value, SEARCH_PAGE_SIZE,
-};
+use iotics_grpc_client::{search, Filter, Property, Scope, Uri, Value, SEARCH_PAGE_SIZE};
 
-use super::settings::{get_token, Settings};
+use super::{
+    settings::{get_token, Settings},
+    RunnableCommand,
+};
+use crate::commands::helpers::delete_and_log_twin;
 
 #[derive(Debug, StructOpt)]
-pub struct DeleteTwinsArgs {
+pub struct DeleteTwinsByModelArgs {
     /// Configuration file stored in the `configuration` folder. Don't include the extension.
     #[structopt(short, long)]
     pub config: String,
@@ -24,22 +27,22 @@ pub struct DeleteTwinsArgs {
     pub verbose: bool,
 }
 
-pub struct DeleteTwins<'a, W>
+pub struct DeleteTwinsByModel<'a, W>
 where
-    W: io::Write,
+    W: io::Write + marker::Send,
 {
     stdout: &'a mut W,
-    opts: DeleteTwinsArgs,
+    opts: DeleteTwinsByModelArgs,
     settings: Settings,
     twins_found: usize,
     twins_deleted: usize,
 }
 
-impl<'a, W> DeleteTwins<'a, W>
+impl<'a, W> DeleteTwinsByModel<'a, W>
 where
-    W: io::Write,
+    W: io::Write + marker::Send,
 {
-    pub fn new(stdout: &'a mut W, opts: DeleteTwinsArgs) -> Result<Self, anyhow::Error> {
+    pub fn new(stdout: &'a mut W, opts: DeleteTwinsByModelArgs) -> Result<Self, anyhow::Error> {
         let settings = Settings::new(&opts.config, stdout)?;
         Ok(Self {
             stdout,
@@ -49,8 +52,14 @@ where
             twins_deleted: 0,
         })
     }
+}
 
-    pub async fn run(&mut self) -> Result<(), anyhow::Error> {
+#[async_trait]
+impl<'a, W> RunnableCommand for DeleteTwinsByModel<'a, W>
+where
+    W: io::Write + marker::Send,
+{
+    async fn run(&mut self) -> Result<(), anyhow::Error> {
         let token = get_token(&self.settings)?;
 
         let mut stream = search(
@@ -86,9 +95,40 @@ where
                             .map(|twin| twin.id.expect("this should not happen").value)
                             .collect();
 
+                        writeln!(
+                            self.stdout,
+                            "Found {} twins for model {}. Deleting...",
+                            Paint::yellow(twins_dids.len()),
+                            Paint::blue(&self.opts.model_did),
+                        )?;
+                        self.stdout.flush()?;
+
                         for twin_did in twins_dids {
-                            self.delete_twin(&token, &twin_did, false).await?;
+                            let result = delete_and_log_twin(
+                                self.stdout,
+                                &self.settings.iotics.host_address,
+                                &token,
+                                &twin_did,
+                                self.twins_found,
+                                self.opts.verbose,
+                            )
+                            .await;
+
+                            self.twins_found += 1;
+
+                            if result.is_ok() {
+                                self.twins_deleted += 1;
+                            }
                         }
+
+                        writeln!(self.stdout)?;
+                        writeln!(
+                            self.stdout,
+                            "Deleted {} twins for model {}.",
+                            Paint::red(self.twins_deleted),
+                            Paint::blue(&self.opts.model_did),
+                        )?;
+                        self.stdout.flush()?;
                     }
                 }
                 Err(e) => {
@@ -98,67 +138,21 @@ where
             }
         }
 
-        writeln!(self.stdout)?;
-        writeln!(
-            self.stdout,
-            "Found {} and deleted {} twins for model {}.",
-            Paint::yellow(self.twins_found),
-            Paint::red(self.twins_deleted),
-            Paint::blue(&self.opts.model_did),
-        )?;
-        self.stdout.flush()?;
-
         if self.opts.delete_model {
             let twin_did = self.opts.model_did.clone();
-            self.delete_twin(&token, &twin_did, true).await?;
+            delete_and_log_twin(
+                self.stdout,
+                &self.settings.iotics.host_address,
+                &token,
+                &twin_did,
+                0,
+                true,
+            )
+            .await?;
         }
 
         writeln!(self.stdout)?;
         writeln!(self.stdout, "Done.")?;
-
-        Ok(())
-    }
-
-    pub async fn delete_twin(
-        &mut self,
-        token: &str,
-        twin_did: &str,
-        force_verbose: bool,
-    ) -> Result<(), anyhow::Error> {
-        let verbose = self.opts.verbose || force_verbose;
-
-        if verbose {
-            write!(self.stdout, "Deleting twin {}... ", twin_did)?;
-        }
-
-        if !verbose && self.twins_found % 64 == 0 {
-            writeln!(self.stdout)?;
-        }
-
-        let result = delete_twin(&self.settings.iotics.host_address, token, twin_did).await;
-
-        self.twins_found += 1;
-
-        match result {
-            Ok(_) => {
-                self.twins_deleted += 1;
-
-                if verbose {
-                    writeln!(self.stdout, "{}", Paint::green("OK"))?;
-                } else {
-                    write!(self.stdout, "{}", Paint::green("."))?;
-                }
-            }
-            Err(e) => {
-                if verbose {
-                    writeln!(self.stdout, "{:?}", Paint::red(e))?;
-                } else {
-                    write!(self.stdout, "{}", Paint::red("E"))?;
-                }
-            }
-        };
-
-        self.stdout.flush()?;
 
         Ok(())
     }

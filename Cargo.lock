@@ -472,6 +472,7 @@ name = "iotics-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "config",
  "iotics-grpc-client",
  "iotics-identity",

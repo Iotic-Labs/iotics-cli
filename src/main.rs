@@ -4,7 +4,9 @@ use structopt::StructOpt;
 
 mod commands;
 
-use commands::{delete_twins::DeleteTwins, Command};
+use commands::delete_all_twins::DeleteAllTwins;
+use commands::delete_twins_by_model::DeleteTwinsByModel;
+use commands::{Command, RunnableCommand};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,8 +23,24 @@ async fn main() -> anyhow::Result<()> {
     let command = Command::from_args();
 
     match command {
-        Command::DeleteTwins(args) => {
-            let command = DeleteTwins::new(&mut stdout, args);
+        Command::DeleteTwinsByModel(args) => {
+            let command = DeleteTwinsByModel::new(&mut stdout, args);
+
+            match command {
+                Ok(mut command) => {
+                    let result = command.run().await;
+
+                    if let Err(e) = result {
+                        error!("{:?}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("{:?}", e);
+                }
+            }
+        }
+        Command::DeleteAllTwins(args) => {
+            let command = DeleteAllTwins::new(&mut stdout, args);
 
             match command {
                 Ok(mut command) => {
