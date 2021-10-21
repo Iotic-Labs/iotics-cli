@@ -4,10 +4,14 @@ use structopt::StructOpt;
 
 pub mod delete_all_twins;
 pub mod delete_twins_by_model;
+pub mod follow_by_model;
 mod helpers;
 mod settings;
 
-use self::{delete_all_twins::DeleteAllTwinsArgs, delete_twins_by_model::DeleteTwinsByModelArgs};
+use self::{
+    delete_all_twins::DeleteAllTwinsArgs, delete_twins_by_model::DeleteTwinsByModelArgs,
+    follow_by_model::FollowByModelArgs,
+};
 
 #[derive(Debug, StructOpt)]
 #[structopt(bin_name = "cargo")]
@@ -16,6 +20,8 @@ pub enum Command {
     DeleteTwinsByModel(DeleteTwinsByModelArgs),
     /// Deletes all twins from a host that have been created by the given identity
     DeleteAllTwins(DeleteAllTwinsArgs),
+    /// Follow all twins that have been created from a given model
+    FollowByModel(FollowByModelArgs),
 }
 
 #[async_trait]

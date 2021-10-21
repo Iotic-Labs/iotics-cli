@@ -1,3 +1,4 @@
+use commands::follow_by_model::FollowByModel;
 use log::{error, LevelFilter};
 use std::io::stdout;
 use structopt::StructOpt;
@@ -41,6 +42,22 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::DeleteAllTwins(args) => {
             let command = DeleteAllTwins::new(&mut stdout, args);
+
+            match command {
+                Ok(mut command) => {
+                    let result = command.run().await;
+
+                    if let Err(e) = result {
+                        error!("{:?}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("{:?}", e);
+                }
+            }
+        }
+        Command::FollowByModel(args) => {
+            let command = FollowByModel::new(&mut stdout, args);
 
             match command {
                 Ok(mut command) => {

@@ -34,8 +34,6 @@ where
     stdout: &'a mut W,
     opts: DeleteTwinsByModelArgs,
     settings: Settings,
-    twins_found: usize,
-    twins_deleted: usize,
 }
 
 impl<'a, W> DeleteTwinsByModel<'a, W>
@@ -48,8 +46,6 @@ where
             stdout,
             opts,
             settings,
-            twins_found: 0,
-            twins_deleted: 0,
         })
     }
 }
@@ -80,6 +76,8 @@ where
         )
         .await?;
 
+        let mut twins_dids = Vec::new();
+
         while let Some(response) = stream.recv().await {
             match response {
                 Ok(page) => {
@@ -89,46 +87,12 @@ where
                             stream.close();
                         }
 
-                        let twins_dids: Vec<String> = payload
-                            .twins
-                            .into_iter()
-                            .map(|twin| twin.id.expect("this should not happen").value)
-                            .collect();
-
-                        writeln!(
-                            self.stdout,
-                            "Found {} twins for model {}. Deleting...",
-                            Paint::yellow(twins_dids.len()),
-                            Paint::blue(&self.opts.model_did),
-                        )?;
-                        self.stdout.flush()?;
-
-                        for twin_did in twins_dids {
-                            let result = delete_and_log_twin(
-                                self.stdout,
-                                &self.settings.iotics.host_address,
-                                &token,
-                                &twin_did,
-                                self.twins_found,
-                                self.opts.verbose,
-                            )
-                            .await;
-
-                            self.twins_found += 1;
-
-                            if result.is_ok() {
-                                self.twins_deleted += 1;
-                            }
-                        }
-
-                        writeln!(self.stdout)?;
-                        writeln!(
-                            self.stdout,
-                            "Deleted {} twins for model {}.",
-                            Paint::red(self.twins_deleted),
-                            Paint::blue(&self.opts.model_did),
-                        )?;
-                        self.stdout.flush()?;
+                        twins_dids.extend(
+                            payload
+                                .twins
+                                .into_iter()
+                                .map(|twin| twin.id.expect("this should not happen").value),
+                        );
                     }
                 }
                 Err(e) => {
@@ -137,6 +101,41 @@ where
                 }
             }
         }
+
+        writeln!(
+            self.stdout,
+            "Found {} twins for model {}. Deleting...",
+            Paint::yellow(twins_dids.len()),
+            Paint::blue(&self.opts.model_did),
+        )?;
+        self.stdout.flush()?;
+
+        let mut twins_deleted = 0;
+
+        for (twins_found, twin_did) in twins_dids.into_iter().enumerate() {
+            let result = delete_and_log_twin(
+                self.stdout,
+                &self.settings.iotics.host_address,
+                &token,
+                &twin_did,
+                twins_found,
+                self.opts.verbose,
+            )
+            .await;
+
+            if result.is_ok() {
+                twins_deleted += 1;
+            }
+        }
+
+        writeln!(self.stdout)?;
+        writeln!(
+            self.stdout,
+            "Deleted {} twins for model {}.",
+            Paint::red(twins_deleted),
+            Paint::blue(&self.opts.model_did),
+        )?;
+        self.stdout.flush()?;
 
         if self.opts.delete_model {
             let twin_did = self.opts.model_did.clone();
