@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use futures::future::join_all;
+use log::{error, info};
 use std::{io, marker};
 use structopt::StructOpt;
 use yansi::Paint;
@@ -120,13 +121,15 @@ where
                                 let fut = async move {
                                     let twin_did = followed_twin_id.value.clone();
 
+                                    let target = format!(
+                                        "Follower {:4} {} / {}",
+                                        Paint::yellow(count + 1),
+                                        Paint::blue(&twin_did),
+                                        Paint::blue(&followed_feed)
+                                    );
+
                                     if verbose {
-                                        println!(
-                                            "Follower #{} started for twin {} and feed {}",
-                                            Paint::yellow(count),
-                                            Paint::blue(&twin_did),
-                                            Paint::blue(&followed_feed)
-                                        );
+                                        info!(target: &target, "started");
                                     }
 
                                     let mut follow_stream = follow_with_client(
@@ -165,18 +168,18 @@ where
 
                                                                     match json_data {
                                                                         Ok(json_data) => {
-                                                                            println!(
-                                                                                "[{}] {:?}",
-                                                                                twin_did,
+                                                                            info!(
+                                                                                target: &target,
+                                                                                "got {:?}",
                                                                                 Paint::green(
                                                                                     json_data
                                                                                 )
                                                                             );
                                                                         }
                                                                         Err(e) => {
-                                                                            println!(
-                                                                                "[{}] failed to deserialize: {:?}",
-                                                                                twin_did,
+                                                                            error!(
+                                                                                target: &target,
+                                                                                "failed to deserialize: {:?}",
                                                                                 Paint::red(e)
                                                                             );
                                                                         }
@@ -186,13 +189,13 @@ where
                                                         }
                                                     }
                                                     Ok(None) => {
-                                                        println!("[{}] got message None", twin_did);
+                                                        error!(target: &target, "got message None");
                                                     }
                                                     Err(e) => {
                                                         active = false;
-                                                        println!(
-                                                            "[{}] crashed: {:?}",
-                                                            twin_did,
+                                                        error!(
+                                                            target: &target,
+                                                            "crashed: {:?}",
                                                             Paint::red(e)
                                                         );
                                                     }
@@ -200,9 +203,9 @@ where
                                             }
                                         }
                                         Err(e) => {
-                                            println!(
-                                                "[{}] failed to follow: {:?}",
-                                                twin_did,
+                                            error!(
+                                                target: &target,
+                                                "failed to follow: {:?}",
                                                 Paint::red(e)
                                             );
                                         }

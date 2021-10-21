@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(LevelFilter::Info);
 
     pretty_env_logger::formatted_timed_builder()
-        .filter(Some("iotics_cli"), log_level)
+        .filter_level(log_level)
         .init();
 
     let mut stdout = stdout();
