@@ -5,10 +5,9 @@ use std::{io, marker};
 use structopt::StructOpt;
 use yansi::Paint;
 
-use iotics_grpc_client::{
-    create_interest_api_client, follow_with_client, search, Filter, Property, Scope, TwinId, Uri,
-    Value,
-};
+use iotics_grpc_client::common::{Property, Scope, TwinId, Uri, Value};
+use iotics_grpc_client::interest::{create_interest_api_client, follow_with_client};
+use iotics_grpc_client::search::{search, Filter};
 
 use super::{
     settings::{get_token, Settings},
@@ -139,6 +138,7 @@ where
                                         followed_twin_id,
                                         followed_feed,
                                         follower_twin_id,
+                                        true,
                                     )
                                     .await;
 

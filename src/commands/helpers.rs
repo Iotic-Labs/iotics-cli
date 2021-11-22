@@ -1,7 +1,7 @@
 use std::{io, marker};
 use yansi::Paint;
 
-use iotics_grpc_client::delete_twin;
+use iotics_grpc_client::twin::delete_twin;
 
 pub async fn delete_and_log_twin<W>(
     stdout: &'_ mut W,

@@ -3,7 +3,8 @@ use std::{io, marker};
 use structopt::StructOpt;
 use yansi::Paint;
 
-use iotics_grpc_client::{search, Filter, Property, Scope, Uri, Value, SEARCH_PAGE_SIZE};
+use iotics_grpc_client::common::{Property, Scope, Uri, Value};
+use iotics_grpc_client::search::{search, Filter, SEARCH_PAGE_SIZE};
 
 use super::{
     settings::{get_token, Settings},

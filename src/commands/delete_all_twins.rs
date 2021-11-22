@@ -3,7 +3,7 @@ use std::{io, marker};
 use structopt::StructOpt;
 use yansi::Paint;
 
-use iotics_grpc_client::list_all_twins;
+use iotics_grpc_client::twin::list_all_twins;
 
 use super::{
     settings::{get_token, Settings},
