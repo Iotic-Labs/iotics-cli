@@ -6,11 +6,12 @@ pub mod delete_all_twins;
 pub mod delete_twins_by_model;
 pub mod follow_by_model;
 mod helpers;
+pub mod list_hosts;
 mod settings;
 
 use self::{
     delete_all_twins::DeleteAllTwinsArgs, delete_twins_by_model::DeleteTwinsByModelArgs,
-    follow_by_model::FollowByModelArgs,
+    follow_by_model::FollowByModelArgs, list_hosts::ListHostsArgs,
 };
 
 #[derive(Debug, StructOpt)]
@@ -22,6 +23,8 @@ pub enum Command {
     DeleteAllTwins(DeleteAllTwinsArgs),
     /// Follow all twins that have been created from a given model
     FollowByModel(FollowByModelArgs),
+    /// List all hosts that are found in the network
+    ListHosts(ListHostsArgs),
 }
 
 #[async_trait]

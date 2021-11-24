@@ -222,6 +222,13 @@ where
                                     break;
                                 }
                             }
+                        } else {
+                            writeln!(
+                                self.stdout,
+                                "Found 0 twins from {:?}",
+                                payload.remote_host_id
+                            )?;
+                            self.stdout.flush()?;
                         }
                     }
                 }
