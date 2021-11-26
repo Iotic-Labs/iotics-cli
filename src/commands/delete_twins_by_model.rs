@@ -6,11 +6,9 @@ use yansi::Paint;
 use iotics_grpc_client::common::{Property, Scope, Uri, Value};
 use iotics_grpc_client::search::{search, Filter, SEARCH_PAGE_SIZE};
 
-use super::{
-    settings::{get_token, Settings},
-    RunnableCommand,
-};
 use crate::commands::helpers::delete_and_log_twin;
+use crate::commands::settings::{get_token, Settings};
+use crate::commands::RunnableCommand;
 
 #[derive(Debug, StructOpt)]
 pub struct DeleteTwinsByModelArgs {
@@ -56,7 +54,7 @@ impl<'a, W> RunnableCommand for DeleteTwinsByModel<'a, W>
 where
     W: io::Write + marker::Send,
 {
-    async fn run(&mut self) -> Result<(), anyhow::Error> {
+    async fn run(self) -> Result<(), anyhow::Error> {
         let token = get_token(&self.settings)?;
 
         let mut stream = search(

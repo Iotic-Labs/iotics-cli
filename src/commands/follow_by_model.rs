@@ -9,10 +9,8 @@ use iotics_grpc_client::common::{Property, Scope, TwinId, Uri, Value};
 use iotics_grpc_client::interest::{create_interest_api_client, follow_with_client};
 use iotics_grpc_client::search::{search, Filter};
 
-use super::{
-    settings::{get_token, Settings},
-    RunnableCommand,
-};
+use crate::commands::settings::{get_token, Settings};
+use crate::commands::RunnableCommand;
 
 #[derive(Debug, StructOpt)]
 pub struct FollowByModelArgs {
@@ -64,7 +62,7 @@ impl<'a, W> RunnableCommand for FollowByModel<'a, W>
 where
     W: io::Write + marker::Send,
 {
-    async fn run(&mut self) -> Result<(), anyhow::Error> {
+    async fn run(self) -> Result<(), anyhow::Error> {
         let token = get_token(&self.settings)?;
 
         let mut search_stream = search(

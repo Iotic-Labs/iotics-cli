@@ -29,5 +29,5 @@ pub enum Command {
 
 #[async_trait]
 pub trait RunnableCommand: Sized {
-    async fn run(&mut self) -> Result<(), anyhow::Error>;
+    async fn run(self) -> Result<(), anyhow::Error>;
 }

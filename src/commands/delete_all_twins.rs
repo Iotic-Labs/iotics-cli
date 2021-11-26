@@ -5,11 +5,9 @@ use yansi::Paint;
 
 use iotics_grpc_client::twin::list_all_twins;
 
-use super::{
-    settings::{get_token, Settings},
-    RunnableCommand,
-};
 use crate::commands::helpers::delete_and_log_twin;
+use crate::commands::settings::{get_token, Settings};
+use crate::commands::RunnableCommand;
 
 #[derive(Debug, StructOpt)]
 pub struct DeleteAllTwinsArgs {
@@ -53,7 +51,7 @@ impl<'a, W> RunnableCommand for DeleteAllTwins<'a, W>
 where
     W: io::Write + marker::Send,
 {
-    async fn run(&mut self) -> Result<(), anyhow::Error> {
+    async fn run(mut self) -> Result<(), anyhow::Error> {
         let token = get_token(&self.settings)?;
 
         let response = list_all_twins(&self.settings.iotics.host_address, &token).await;

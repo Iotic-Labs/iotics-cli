@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
             let command = DeleteTwinsByModel::new(&mut stdout, args);
 
             match command {
-                Ok(mut command) => {
+                Ok(command) => {
                     let result = command.run().await;
 
                     if let Err(e) = result {
@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
             let command = DeleteAllTwins::new(&mut stdout, args);
 
             match command {
-                Ok(mut command) => {
+                Ok(command) => {
                     let result = command.run().await;
 
                     if let Err(e) = result {
@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
             let command = FollowByModel::new(&mut stdout, args);
 
             match command {
-                Ok(mut command) => {
+                Ok(command) => {
                     let result = command.run().await;
 
                     if let Err(e) = result {
@@ -74,10 +74,10 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Command::ListHosts(args) => {
-            let command = ListHosts::new(&mut stdout, args);
+            let command = ListHosts::new(stdout, args);
 
             match command {
-                Ok(mut command) => {
+                Ok(command) => {
                     let result = command.run().await;
 
                     if let Err(e) = result {
