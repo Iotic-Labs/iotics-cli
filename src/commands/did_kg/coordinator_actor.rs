@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::time::Duration;
 use std::{io, marker};
 
@@ -7,8 +9,13 @@ use actix::{Actor, ActorContext, AsyncContext, Context, Handler, System, WrapFut
 use iotics_grpc_client::common::{Property, Scope, Uri, Value};
 use iotics_grpc_client::search::{search, Filter};
 use log::error;
+use oxigraph::io::GraphFormat;
+use oxigraph::model::vocab::{rdf, rdfs};
+use oxigraph::model::{GraphName, LiteralRef, NamedNodeRef, TripleRef};
+use oxigraph::MemoryStore;
 use yansi::Paint;
 
+use crate::commands::did_kg::diddy;
 use crate::commands::did_kg::messages::{
     GenerateKbMessage, HostEmptyResultMessage, HostResultMessage, ProcessHostMessage,
 };
@@ -214,7 +221,53 @@ where
         .expect("this should not happen");
         self.stdout.flush().expect("this should not happen");
 
-        // TODO: generate KG
+        // generate KG
+        let store = MemoryStore::new();
+        store
+            .load_graph(
+                diddy::ONTOLOGY.as_ref(),
+                GraphFormat::Turtle,
+                &GraphName::DefaultGraph,
+                None,
+            )
+            .expect("failed to load the ontology");
+
+        // TODO: add data
+        for (host, _) in &self.host_twins {
+            store.insert(
+                TripleRef::new(NamedNodeRef::new_unchecked(host), rdf::TYPE, diddy::HOST)
+                    .in_graph(&GraphName::DefaultGraph),
+            );
+            store.insert(
+                TripleRef::new(
+                    NamedNodeRef::new_unchecked(host),
+                    rdfs::LABEL,
+                    LiteralRef::new_simple_literal(host),
+                )
+                .in_graph(&GraphName::DefaultGraph),
+            );
+            store.insert(
+                TripleRef::new(
+                    NamedNodeRef::new_unchecked(host),
+                    diddy::HOST_ADDRESS,
+                    LiteralRef::new_simple_literal(&format!("https://{}.iotics.space", host)),
+                )
+                .in_graph(&GraphName::DefaultGraph),
+            );
+        }
+
+        // dump to file
+        let mut buffer = Vec::new();
+        store
+            .dump_graph(&mut buffer, GraphFormat::Turtle, &GraphName::DefaultGraph)
+            .expect("failed to dump the graph");
+
+        let file_path = "export/iotics_twins.ttl".to_string();
+        let mut file = File::create(&file_path).expect("failed to create the export file");
+        file.write_all(diddy::ONTOLOGY.as_bytes())
+            .expect("failed to write to the export file");
+        file.write_all(&buffer)
+            .expect("failed to write to the export file");
 
         ctx.stop();
     }
