@@ -18,18 +18,45 @@ WHERE {
     filter (?prop != rdf:type && ?prop != rdfs:domain && ?prop != rdfs:range && ?subject != <did:iotics:iotK2hj8rSBVngzLWeZcgBnuisGHn1TDWn5R> && ?object != <did:iotics:iotK2hj8rSBVngzLWeZcgBnuisGHn1TDWn5R>)
 }
 
-# 1.1. Which host(s) contain a given twin?
+# 1.1. How many twins are in the network and how are they distributed in spaces?
 prefix diddy: <https://data.iotics.com/diddy/>
 
-SELECT ?twin_did ?address
+SELECT ?host_uri (COUNT(?twin_iri) as ?twins)
 WHERE {
-    VALUES ?twin_did { <did:iotics:iotXmQgUWMh33qEjM17VfW24hZ5n18RPUP5a> }
-    ?twin_did rdf:type diddy:Twin .
-    ?twin_did diddy:livesIn ?host_iri .
-    ?host_iri diddy:address ?address .
+    ?twin_iri diddy:livesIn ?host_iri .
+    ?host_iri diddy:address ?host_uri .
 }
+GROUP BY ?host_uri
+ORDER BY DESC(?twins)
 
-# 1.2. Which hosts contain the most twin duplicates?
+# 1.2. How many twins have been created in the last 7 days and in which hosts?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT ?host_uri (COUNT(?twin_iri) as ?twins)
+WHERE {
+    ?twin_iri diddy:livesIn ?host_iri .
+    ?host_iri diddy:address ?host_uri .
+    ?twin_iri diddy:updateTime ?update_time .
+    BIND (xsd:dateTime(substr(str(xsd:dateTime((now()-"P7D"^^xsd:duration))), 1, 25)) AS ?week_ago)
+    FILTER (?update_time > ?week_ago)
+}
+GROUP BY ?host_uri
+ORDER BY DESC(?twins)
+
+# 1.3. What twins have been created in the last day?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT *
+WHERE {
+    ?iri rdf:type diddy:Twin .
+    ?iri diddy:updateTime ?update_time .
+    ?iri diddy:livesIn ?host .
+    BIND (xsd:dateTime(substr(str(xsd:dateTime((now()-"P1D"^^xsd:duration))), 1, 25)) AS ?day_ago)
+    FILTER (?update_time > ?day_ago)
+}
+ORDER BY DESC(?update_time)
+
+# 2.1. Which twins are present in a lot of hosts?
 prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT ?twin_did (COUNT(?address) as ?host_count)
@@ -41,7 +68,18 @@ WHERE {
 GROUP BY ?twin_did
 ORDER BY DESC(?host_count)
 
-# 2.1. Which are the agents controlling twins in a network?
+# 2.2. Which host(s) contain a given twin?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT ?twin_did ?address
+WHERE {
+    VALUES ?twin_did { <did:iotics:iotXmQgUWMh33qEjM17VfW24hZ5n18RPUP5a> }
+    ?twin_did rdf:type diddy:Twin .
+    ?twin_did diddy:livesIn ?host_iri .
+    ?host_iri diddy:address ?address .
+}
+
+# 3.1. Which are the agents controlling twins in a network?
 prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT ?agent_iri (COUNT(DISTINCT ?host_iri) as ?hosts) (COUNT(?twin_iri) as ?twins)
@@ -53,7 +91,7 @@ WHERE {
 GROUP BY ?agent_iri
 ORDER BY DESC(?hosts) DESC(?twins)
 
-# 3.1. Which are the agents controlling twins in a given host
+# 4.1. Which are the agents controlling twins in a given host?
 prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT ?agent_iri (COUNT(?twin_iri) as ?twins)
@@ -66,7 +104,7 @@ WHERE {
 GROUP BY ?agent_iri
 ORDER BY DESC(?twins)
 
-# 4.1. Where do the twins controlled by a particular agent sit?
+# 5.1. Where do the twins controlled by a particular agent sit?
 prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT ?agent_iri ?twin_iri ?host_iri
@@ -78,19 +116,7 @@ WHERE {
 }
 ORDER BY ASC(?host_iri)
 
-# 5.1. What twins have been created in the last X days?
-prefix diddy: <https://data.iotics.com/diddy/>
-
-SELECT *
-WHERE {
-    ?iri rdf:type diddy:Twin .
-    ?iri diddy:updateTime ?update_time .
-    ?iri diddy:livesIn ?host .
-    FILTER (?update_time > "2021-12-06T11:00:00+00:00"^^xsd:dateTime)
-}
-ORDER BY DESC(?update_time)
-
-# 6.1. Whi are the twins that are not owned by a specific agent? (rogue twins)
+# 6.1. Are there any twins which are not owned by a specific agent (rogue twins)?
 prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT *
@@ -100,6 +126,16 @@ WHERE {
     FILTER NOT EXISTS { ?twin_iri diddy:controlledBy ?agent_iri }
 }
 
-# ODD things that we notice
+# Odd things that we've noticed
+
 # - agent did = twin did
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT *
+WHERE {
+    ?iri rdf:type diddy:Agent .
+    ?iri diddy:keyName ?key_name .
+    ?iri diddy:livesIn ?host .
+    ?host rdf:type diddy:Host .
+}
 # - some twin dids showing up in a lot of spaces
