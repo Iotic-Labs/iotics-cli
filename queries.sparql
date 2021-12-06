@@ -4,6 +4,20 @@ WHERE {
     ?s ?p ?o .
 }
 
+# 0.1. Schema Visualizer
+CONSTRUCT {
+    ?domain ?prop ?range
+}
+WHERE {
+    ?subject ?prop ?object .
+    ?subject a ?domain .
+    optional {
+        ?object a ?oClass .
+    }
+    bind(if(bound(?oClass), ?oClass, datatype(?object)) as ?range)
+    filter (?prop != rdf:type && ?prop != rdfs:domain && ?prop != rdfs:range && ?subject != <did:iotics:iotK2hj8rSBVngzLWeZcgBnuisGHn1TDWn5R> && ?object != <did:iotics:iotK2hj8rSBVngzLWeZcgBnuisGHn1TDWn5R>)
+}
+
 # 1.1. Which host(s) contain a given twin?
 prefix diddy: <https://data.iotics.com/diddy/>
 
