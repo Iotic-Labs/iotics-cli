@@ -56,7 +56,7 @@ WHERE {
 }
 ORDER BY DESC(?update_time)
 
-# 2.1. Which twins are present in a lot of hosts?
+# 2.1. Which twins are present in more than one host?
 prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT ?twin_did (COUNT(?address) as ?host_count)
@@ -116,7 +116,7 @@ WHERE {
 }
 ORDER BY ASC(?host_iri)
 
-# 6.1. Are there any twins which are not owned by a specific agent (rogue twins)?
+# 6.1. Are there any twins which are not controller by at least one agent (rogue twins)?
 prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT *
