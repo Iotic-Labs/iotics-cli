@@ -9,18 +9,18 @@ use chrono::{DateTime, Utc};
 
 use crate::commands::settings::Settings;
 
-#[derive(Debug)]
-pub struct TwinDelegation {
-    did: String,
-    key_name: String,
+#[derive(Debug, PartialEq, Clone)]
+pub struct Agent {
+    pub did: String,
+    pub key_name: String,
 }
 
 #[derive(Debug)]
 pub struct TwinDidDocument {
-    did: String,
-    key_name: String,
-    update_time: DateTime<Utc>,
-    delegations: Vec<TwinDelegation>,
+    pub did: String,
+    pub key_name: String,
+    pub update_time: DateTime<Utc>,
+    pub delegations: Vec<Agent>,
 }
 
 async fn get_did_document_cached(
@@ -90,7 +90,7 @@ pub async fn parse_did_document(
             .ok_or_else(|| anyhow::anyhow!("failed to split delegation agent did"))?;
 
         delegations.push({
-            TwinDelegation {
+            Agent {
                 did: did.to_string(),
                 key_name: key_name.to_string(),
             }

@@ -1,0 +1,91 @@
+# Cleanup
+DELETE
+WHERE {
+    ?s ?p ?o .
+}
+
+# 1.1. Which host(s) contain a given twin?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT ?twin_did ?address
+WHERE {
+    VALUES ?twin_did { <did:iotics:iotXmQgUWMh33qEjM17VfW24hZ5n18RPUP5a> }
+    ?twin_did rdf:type diddy:Twin .
+    ?twin_did diddy:livesIn ?host_iri .
+    ?host_iri diddy:address ?address .
+}
+
+# 1.2. Which hosts contain the most twin duplicates?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT ?twin_did (COUNT(?address) as ?host_count)
+WHERE {
+    ?twin_did rdf:type diddy:Twin .
+    ?twin_did diddy:livesIn ?host_iri .
+    ?host_iri diddy:address ?address .
+}
+GROUP BY ?twin_did
+ORDER BY DESC(?host_count)
+
+# 2.1. Which are the agents controlling twins in a network?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT ?agent_iri (COUNT(DISTINCT ?host_iri) as ?hosts) (COUNT(?twin_iri) as ?twins)
+WHERE {
+    ?agent_iri rdf:type diddy:Agent .
+    ?twin_iri diddy:controlledBy ?agent_iri .
+    ?twin_iri diddy:livesIn ?host_iri .
+}
+GROUP BY ?agent_iri
+ORDER BY DESC(?hosts) DESC(?twins)
+
+# 3.1. Which are the agents controlling twins in a given host
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT ?agent_iri (COUNT(?twin_iri) as ?twins)
+WHERE {
+    VALUES ?host_iri { <https://data.iotics.com/diddy/hosts/ganymede> }
+    ?agent_iri rdf:type diddy:Agent .
+    ?twin_iri diddy:controlledBy ?agent_iri .
+    ?twin_iri diddy:livesIn ?host_iri .
+}
+GROUP BY ?agent_iri
+ORDER BY DESC(?twins)
+
+# 4.1. Where do the twins controlled by a particular agent sit?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT ?agent_iri ?twin_iri ?host_iri
+WHERE {
+    VALUES ?agent_iri { <did:iotics:iotJLypubBYGTpKs73pve2B2rBmNXcsP6KiG> }
+    ?agent_iri rdf:type diddy:Agent .
+    ?twin_iri diddy:controlledBy ?agent_iri .
+    ?twin_iri diddy:livesIn ?host_iri .
+}
+ORDER BY ASC(?host_iri)
+
+# 5.1. What twins have been created in the last X days?
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT *
+WHERE {
+    ?iri rdf:type diddy:Twin .
+    ?iri diddy:updateTime ?update_time .
+    ?iri diddy:livesIn ?host .
+    FILTER (?update_time > "2021-12-06T11:00:00+00:00"^^xsd:dateTime)
+}
+ORDER BY DESC(?update_time)
+
+# 6.1. Whi are the twins that are not owned by a specific agent? (rogue twins)
+prefix diddy: <https://data.iotics.com/diddy/>
+
+SELECT *
+WHERE {
+    ?twin_iri rdf:type diddy:Twin .
+    ?twin_iri diddy:livesIn ?host_iri .
+    FILTER NOT EXISTS { ?twin_iri diddy:controlledBy ?agent_iri }
+}
+
+# ODD things that we notice
+# - agent did = twin did
+# - some twin dids showing up in a lot of spaces

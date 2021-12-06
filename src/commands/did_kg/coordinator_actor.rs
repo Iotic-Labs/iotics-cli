@@ -24,6 +24,7 @@ use crate::commands::did_kg::DidKGArgs;
 use crate::commands::settings::{get_token, Settings};
 
 use super::host_actor::HostActor;
+use super::resolver::Agent;
 
 pub struct CoordinatorActor<W>
 where
@@ -232,25 +233,96 @@ where
             )
             .expect("failed to load the ontology");
 
+        let mut agents: Vec<Agent> = Vec::new();
+
         // TODO: add data
-        for (host, _) in &self.host_twins {
+        for (host, twins) in &self.host_twins {
+            let host_uri = format!("{}{}", diddy::HOST_PREFIX, host);
+            let host_node = NamedNodeRef::new_unchecked(&host_uri);
+
             store.insert(
-                TripleRef::new(NamedNodeRef::new_unchecked(host), rdf::TYPE, diddy::HOST)
+                TripleRef::new(host_node, rdf::TYPE, diddy::HOST)
+                    .in_graph(&GraphName::DefaultGraph),
+            );
+            store.insert(
+                TripleRef::new(host_node, rdfs::LABEL, LiteralRef::new_simple_literal(host))
                     .in_graph(&GraphName::DefaultGraph),
             );
             store.insert(
                 TripleRef::new(
-                    NamedNodeRef::new_unchecked(host),
-                    rdfs::LABEL,
-                    LiteralRef::new_simple_literal(host),
+                    host_node,
+                    diddy::HOST_ADDRESS,
+                    LiteralRef::new_simple_literal(&format!("https://{}.iotics.space", host)),
+                )
+                .in_graph(&GraphName::DefaultGraph),
+            );
+
+            for twin in twins {
+                store.insert(
+                    TripleRef::new(
+                        NamedNodeRef::new_unchecked(&twin.did),
+                        rdf::TYPE,
+                        diddy::TWIN,
+                    )
+                    .in_graph(&GraphName::DefaultGraph),
+                );
+                store.insert(
+                    TripleRef::new(
+                        NamedNodeRef::new_unchecked(&twin.did),
+                        diddy::DID_KEY_NAME,
+                        LiteralRef::new_simple_literal(&twin.key_name),
+                    )
+                    .in_graph(&GraphName::DefaultGraph),
+                );
+                store.insert(
+                    TripleRef::new(
+                        NamedNodeRef::new_unchecked(&twin.did),
+                        diddy::DID_UPDATE_TIME,
+                        LiteralRef::new_simple_literal(&twin.update_time.to_rfc3339()),
+                    )
+                    .in_graph(&GraphName::DefaultGraph),
+                );
+                store.insert(
+                    TripleRef::new(
+                        NamedNodeRef::new_unchecked(&twin.did),
+                        diddy::TWIN_LIVES_IN,
+                        host_node,
+                    )
+                    .in_graph(&GraphName::DefaultGraph),
+                );
+
+                // controls
+                for delegation in &twin.delegations {
+                    if !agents.contains(delegation) {
+                        agents.push(delegation.clone());
+                    }
+
+                    store.insert(
+                        TripleRef::new(
+                            NamedNodeRef::new_unchecked(&twin.did),
+                            diddy::TWIN_CONTROLLED_BY,
+                            NamedNodeRef::new_unchecked(&delegation.did),
+                        )
+                        .in_graph(&GraphName::DefaultGraph),
+                    );
+                }
+            }
+        }
+
+        for agent in agents {
+            store.insert(
+                TripleRef::new(
+                    NamedNodeRef::new_unchecked(&agent.did),
+                    rdf::TYPE,
+                    diddy::AGENT,
                 )
                 .in_graph(&GraphName::DefaultGraph),
             );
             store.insert(
                 TripleRef::new(
-                    NamedNodeRef::new_unchecked(host),
-                    diddy::HOST_ADDRESS,
-                    LiteralRef::new_simple_literal(&format!("https://{}.iotics.space", host)),
+                    NamedNodeRef::new_unchecked(&agent.did),
+                    diddy::DID_KEY_NAME,
+                    LiteralRef::new_simple_literal(&agent.key_name),
                 )
                 .in_graph(&GraphName::DefaultGraph),
             );
