@@ -237,8 +237,8 @@ where
 
         // TODO: add data
         for (host, twins) in &self.host_twins {
-            let host_uri = format!("{}{}", diddy::HOST_PREFIX, host);
-            let host_node = NamedNodeRef::new_unchecked(&host_uri);
+            let host_iri = format!("{}{}", diddy::PREFIX, host);
+            let host_node = NamedNodeRef::new_unchecked(&host_iri);
 
             store.insert(
                 TripleRef::new(host_node, rdf::TYPE, diddy::HOST)
@@ -258,17 +258,16 @@ where
             );
 
             for twin in twins {
+                let twin_iri = format!("{}{}", diddy::PREFIX, &twin.did);
+                let twin_node = NamedNodeRef::new_unchecked(&twin_iri);
+
                 store.insert(
-                    TripleRef::new(
-                        NamedNodeRef::new_unchecked(&twin.did),
-                        rdf::TYPE,
-                        diddy::TWIN,
-                    )
-                    .in_graph(&GraphName::DefaultGraph),
+                    TripleRef::new(twin_node, rdf::TYPE, diddy::TWIN)
+                        .in_graph(&GraphName::DefaultGraph),
                 );
                 store.insert(
                     TripleRef::new(
-                        NamedNodeRef::new_unchecked(&twin.did),
+                        twin_node,
                         diddy::DID_KEY_NAME,
                         LiteralRef::new_simple_literal(&twin.key_name),
                     )
@@ -276,51 +275,45 @@ where
                 );
                 store.insert(
                     TripleRef::new(
-                        NamedNodeRef::new_unchecked(&twin.did),
+                        twin_node,
                         diddy::DID_UPDATE_TIME,
                         LiteralRef::new_simple_literal(&twin.update_time.to_rfc3339()),
                     )
                     .in_graph(&GraphName::DefaultGraph),
                 );
                 store.insert(
-                    TripleRef::new(
-                        NamedNodeRef::new_unchecked(&twin.did),
-                        diddy::TWIN_LIVES_IN,
-                        host_node,
-                    )
-                    .in_graph(&GraphName::DefaultGraph),
+                    TripleRef::new(twin_node, diddy::TWIN_LIVES_IN, host_node)
+                        .in_graph(&GraphName::DefaultGraph),
                 );
 
                 // controls
                 for delegation in &twin.delegations {
+                    let delegation_iri = format!("{}{}", diddy::PREFIX, &delegation.did);
+                    let delegation_node = NamedNodeRef::new_unchecked(&delegation_iri);
+
                     if !agents.contains(delegation) {
                         agents.push(delegation.clone());
                     }
 
                     store.insert(
-                        TripleRef::new(
-                            NamedNodeRef::new_unchecked(&twin.did),
-                            diddy::TWIN_CONTROLLED_BY,
-                            NamedNodeRef::new_unchecked(&delegation.did),
-                        )
-                        .in_graph(&GraphName::DefaultGraph),
+                        TripleRef::new(twin_node, diddy::TWIN_CONTROLLED_BY, delegation_node)
+                            .in_graph(&GraphName::DefaultGraph),
                     );
                 }
             }
         }
 
         for agent in agents {
+            let agent_iri = format!("{}{}", diddy::PREFIX, &agent.did);
+            let agent_node = NamedNodeRef::new_unchecked(&agent_iri);
+
             store.insert(
-                TripleRef::new(
-                    NamedNodeRef::new_unchecked(&agent.did),
-                    rdf::TYPE,
-                    diddy::AGENT,
-                )
-                .in_graph(&GraphName::DefaultGraph),
+                TripleRef::new(agent_node, rdf::TYPE, diddy::AGENT)
+                    .in_graph(&GraphName::DefaultGraph),
             );
             store.insert(
                 TripleRef::new(
-                    NamedNodeRef::new_unchecked(&agent.did),
+                    agent_node,
                     diddy::DID_KEY_NAME,
                     LiteralRef::new_simple_literal(&agent.key_name),
                 )

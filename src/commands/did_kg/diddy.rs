@@ -1,6 +1,6 @@
 use oxigraph::model::NamedNodeRef;
 
-pub const HOST_PREFIX: &str = "https://data.iotics.com/diddy/hosts/";
+pub const PREFIX: &str = "https://data.iotics.com/diddy/";
 
 pub const HOST: NamedNodeRef<'_> =
     NamedNodeRef::new_unchecked("https://data.iotics.com/diddy/Host");
@@ -24,7 +24,12 @@ pub const ONTOLOGY: &str = r#"
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix diddy: <https://data.iotics.com/diddy/> .
+@base <https://data.iotics.com/diddy/> .
+
+<https://data.iotics.com/diddy/> rdf:type owl:Ontology ;
+        dcterms:title "IOTICS DIDdy Ontology"@en .
 
 diddy:Host rdf:type rdf:Class .
 

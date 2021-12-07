@@ -96,7 +96,7 @@ prefix diddy: <https://data.iotics.com/diddy/>
 
 SELECT ?agent_iri (COUNT(?twin_iri) as ?twins)
 WHERE {
-    VALUES ?host_iri { <https://data.iotics.com/diddy/hosts/ganymede> }
+    VALUES ?host_iri { <https://data.iotics.com/diddy/ganymede> }
     ?agent_iri rdf:type diddy:Agent .
     ?twin_iri diddy:controlledBy ?agent_iri .
     ?twin_iri diddy:livesIn ?host_iri .
