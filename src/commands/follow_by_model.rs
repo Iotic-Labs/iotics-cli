@@ -9,7 +9,7 @@ use iotics_grpc_client::common::{Property, Scope, TwinId, Uri, Value};
 use iotics_grpc_client::interest::{create_interest_api_client, follow_with_client};
 use iotics_grpc_client::search::{search, Filter};
 
-use crate::commands::settings::{get_token, Settings};
+use crate::commands::settings::{AuthBuilder, Settings};
 use crate::commands::RunnableCommand;
 
 #[derive(Debug, StructOpt)]
@@ -63,11 +63,10 @@ where
     W: io::Write + marker::Send,
 {
     async fn run(self) -> Result<(), anyhow::Error> {
-        let token = get_token(&self.settings)?;
+        let auth_builder = AuthBuilder::new(self.settings.clone());
 
         let mut search_stream = search(
-            &self.settings.iotics.host_address,
-            &token,
+            auth_builder.clone(),
             Filter {
                 properties: vec![Property {
                     key: "https://data.iotics.com/app#model".to_string(),
@@ -85,7 +84,7 @@ where
 
         let mut count = 0;
         let mut follow_handles = Vec::new();
-        let client = create_interest_api_client(&self.settings.iotics.host_address).await?;
+        let client = create_interest_api_client(auth_builder.clone()).await?;
         let follower_twin_id = TwinId {
             value: self.opts.follower_twin_did.clone(),
         };
@@ -106,7 +105,6 @@ where
                             self.stdout.flush()?;
 
                             for twin in twins {
-                                let token = token.clone();
                                 let mut interest_channel = client.clone();
                                 let followed_twin_id =
                                     twin.id.expect("this should not happen").clone();
@@ -114,6 +112,7 @@ where
                                 let followed_feed = self.opts.feed_id.clone();
                                 let follower_twin_id = follower_twin_id.clone();
                                 let verbose = self.opts.verbose;
+                                let followed_auth_builder = auth_builder.clone();
 
                                 let fut = async move {
                                     let twin_did = followed_twin_id.value.clone();
@@ -130,8 +129,8 @@ where
                                     }
 
                                     let mut follow_stream = follow_with_client(
+                                        followed_auth_builder.clone(),
                                         &mut interest_channel,
-                                        &token,
                                         followed_host_id,
                                         followed_twin_id,
                                         followed_feed,

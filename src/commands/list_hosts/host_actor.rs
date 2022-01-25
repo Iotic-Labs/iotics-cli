@@ -1,26 +1,28 @@
+use std::sync::Arc;
 use std::{io, marker};
 
 use actix::{Actor, Addr, AsyncContext, Context as ActixContext, WrapFuture};
 use anyhow::Context;
+use iotics_grpc_client::auth_builder::IntoAuthBuilder;
 use iotics_grpc_client::common::HostId;
-use iotics_grpc_client::twin::list_all_twins;
+use iotics_grpc_client::twin::list::list_all_twins;
 use log::error;
 use regex::Regex;
 
 use crate::commands::list_hosts::coordinator_actor::CoordinatorActor;
 use crate::commands::list_hosts::messages::{HostEmptyResultMessage, HostResultMessage};
-use crate::commands::list_hosts::ListHostsArgs;
-use crate::commands::settings::Settings;
+use crate::commands::list_hosts::{ListHostsArgs, NetworkType};
+use crate::commands::settings::AuthBuilder;
 
 pub struct HostActor<W>
 where
     W: io::Write + marker::Send + marker::Sync + 'static,
 {
     coordinator_addr: Addr<CoordinatorActor<W>>,
-    settings: Settings,
+    auth_builder: Arc<AuthBuilder>,
     opts: ListHostsArgs,
-    token: String,
     remote_host_id: Option<HostId>,
+    network_type: NetworkType,
 }
 
 impl<W> HostActor<W>
@@ -29,17 +31,17 @@ where
 {
     pub fn new(
         coordinator_addr: Addr<CoordinatorActor<W>>,
-        settings: Settings,
+        auth_builder: Arc<AuthBuilder>,
         opts: ListHostsArgs,
-        token: String,
         remote_host_id: Option<HostId>,
+        network_type: NetworkType,
     ) -> Self {
         Self {
             coordinator_addr,
-            settings,
+            auth_builder,
             opts,
-            token,
             remote_host_id,
+            network_type,
         }
     }
 }
@@ -54,18 +56,18 @@ where
         let coordinator_actor = self.coordinator_addr.clone();
         let remote_host_id = self.remote_host_id.clone();
         let opts = self.opts.clone();
-        let settings = self.settings.clone();
-        let token = self.token.clone();
+        let auth_builder = self.auth_builder.clone();
+        let network_type = self.network_type.clone();
 
         let fut = async move {
             let (host_did, url) = match remote_host_id {
                 Some(remote_host_id) => {
                     let host_did = remote_host_id.value;
-                    let url = get_host_url(&opts, &host_did).await;
+                    let url = get_host_url(&opts, &host_did, &network_type).await;
                     (host_did, url)
                 }
                 _ => {
-                    let url = settings.iotics.host_address.clone();
+                    let url = auth_builder.get_host().expect("failed to get host_address");
                     let url = url.replace("https://", "").replace(":10001", "");
                     ("?".to_string(), Some(url))
                 }
@@ -73,7 +75,7 @@ where
 
             if let Some(url) = url {
                 let version = get_host_version(&opts, &url).await;
-                let twins_count = get_twin_count(&opts, &url, &token).await;
+                let twins_count = get_twin_count(&opts, &url, auth_builder.clone()).await;
 
                 let url = url.replace(".iotics.space", "");
 
@@ -102,9 +104,18 @@ struct VersionPayload {
     pub version: String,
 }
 
-async fn get_host_url(opts: &ListHostsArgs, host_did: &str) -> Option<String> {
+async fn get_host_url(
+    opts: &ListHostsArgs,
+    host_did: &str,
+    network_type: &NetworkType,
+) -> Option<String> {
     let output = async {
-        let result = run_script::run_script!(format!("dig TXT {}.iotics.space", &host_did))?;
+        let dig_command = match network_type {
+            &NetworkType::Dev => format!("dig TXT {}.dev.iotics.space", &host_did),
+            _ => format!("dig TXT {}.iotics.space", &host_did),
+        };
+
+        let result = run_script::run_script!(dig_command)?;
 
         let (_, output, _) = result;
         let re = Regex::new(r#"IN TXT "(.*)""#).expect("this should not happen");
@@ -163,12 +174,20 @@ async fn get_host_version(opts: &ListHostsArgs, url: &str) -> String {
     }
 }
 
-async fn get_twin_count(opts: &ListHostsArgs, url: &str, token: &str) -> Option<usize> {
+async fn get_twin_count(
+    opts: &ListHostsArgs,
+    url: &str,
+    auth_builder: Arc<AuthBuilder>,
+) -> Option<usize> {
     let output: Result<Option<usize>, anyhow::Error> = async {
         match opts.with_twins {
             true => {
                 let host_url = format!("https://{}:10001", &url);
-                let response = list_all_twins(&host_url, token).await?;
+
+                let update_auth_builder = auth_builder.clone();
+                update_auth_builder.update_host(host_url)?;
+
+                let response = list_all_twins(auth_builder).await?;
 
                 if let Some(payload) = response.payload {
                     Ok(Some(payload.twins.len() as usize))

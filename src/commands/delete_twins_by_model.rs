@@ -7,7 +7,7 @@ use iotics_grpc_client::common::{Property, Scope, Uri, Value};
 use iotics_grpc_client::search::{search, Filter, SEARCH_PAGE_SIZE};
 
 use crate::commands::helpers::delete_and_log_twin;
-use crate::commands::settings::{get_token, Settings};
+use crate::commands::settings::{AuthBuilder, Settings};
 use crate::commands::RunnableCommand;
 
 #[derive(Debug, StructOpt)]
@@ -55,11 +55,10 @@ where
     W: io::Write + marker::Send,
 {
     async fn run(self) -> Result<(), anyhow::Error> {
-        let token = get_token(&self.settings)?;
+        let auth_builder = AuthBuilder::new(self.settings.clone());
 
         let mut stream = search(
-            &self.settings.iotics.host_address,
-            &token,
+            auth_builder.clone(),
             Filter {
                 properties: vec![Property {
                     key: "https://data.iotics.com/app#model".to_string(),
@@ -114,8 +113,7 @@ where
         for (twins_found, twin_did) in twins_dids.into_iter().enumerate() {
             let result = delete_and_log_twin(
                 self.stdout,
-                &self.settings.iotics.host_address,
-                &token,
+                auth_builder.clone(),
                 &twin_did,
                 twins_found,
                 self.opts.verbose,
@@ -138,15 +136,7 @@ where
 
         if self.opts.delete_model {
             let twin_did = self.opts.model_did.clone();
-            delete_and_log_twin(
-                self.stdout,
-                &self.settings.iotics.host_address,
-                &token,
-                &twin_did,
-                0,
-                true,
-            )
-            .await?;
+            delete_and_log_twin(self.stdout, auth_builder.clone(), &twin_did, 0, true).await?;
         }
 
         writeln!(self.stdout)?;

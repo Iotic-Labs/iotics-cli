@@ -5,7 +5,6 @@ use iotics_grpc_client::search::SearchResponsePayload;
 #[rtype(result = "()")]
 pub struct ProcessHostMessage {
     pub payload: SearchResponsePayload,
-    pub token: String,
 }
 
 #[derive(Debug, Message)]

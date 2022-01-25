@@ -1,6 +1,10 @@
-use std::io;
+use std::{
+    io,
+    sync::{Arc, Mutex},
+};
 
-use iotics_identity::{create_agent_auth_token, Config, IdentityLibError};
+use iotics_grpc_client::auth_builder::IntoAuthBuilder;
+use iotics_identity::{create_agent_auth_token, Config};
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use yansi::Paint;
@@ -73,17 +77,76 @@ impl Settings {
     }
 }
 
-pub fn get_token(settings: &Settings) -> Result<String, IdentityLibError> {
-    let identity_config = Config {
-        resolver_address: settings.iotics.resolver_address.clone(),
-        token_duration: settings.iotics.token_duration as i64,
-        user_did: settings.iotics.user_did.clone(),
-        agent_did: settings.iotics.agent_did.clone(),
-        agent_key_name: settings.iotics.agent_key_name.clone(),
-        agent_name: settings.iotics.agent_name.clone(),
-        agent_secret: settings.iotics.agent_secret.clone(),
-    };
+#[derive(Clone)]
+pub struct AuthBuilder {
+    settings: Arc<Mutex<Settings>>,
+    token: Arc<Mutex<Option<String>>>,
+}
 
-    let token = create_agent_auth_token(&identity_config)?;
-    Ok(format!("bearer {}", token))
+impl AuthBuilder {
+    pub fn new(settings: Settings) -> Arc<Self> {
+        Arc::new(Self {
+            settings: Arc::new(Mutex::new(settings)),
+            token: Arc::new(Mutex::new(None)),
+        })
+    }
+
+    pub fn from(auth_builder: Arc<AuthBuilder>) -> Arc<Self> {
+        Arc::new(AuthBuilder::clone(&auth_builder))
+    }
+
+    pub fn update_host(&self, new_host_address: String) -> Result<(), anyhow::Error> {
+        let mut settings_lock = self
+            .settings
+            .lock()
+            .map_err(|_| anyhow::anyhow!("failed to lock the settings mutex"))?;
+
+        settings_lock.iotics.host_address = new_host_address;
+
+        Ok(())
+    }
+}
+
+impl IntoAuthBuilder for AuthBuilder {
+    fn get_host(&self) -> Result<String, anyhow::Error> {
+        let settings_lock = self
+            .settings
+            .lock()
+            .map_err(|_| anyhow::anyhow!("failed to lock the settings mutex"))?;
+
+        Ok(settings_lock.iotics.host_address.clone())
+    }
+
+    fn get_token(&self) -> Result<String, anyhow::Error> {
+        let mut token_lock = self
+            .token
+            .lock()
+            .map_err(|_| anyhow::anyhow!("failed to lock the token mutex"))?;
+
+        if token_lock.is_none() {
+            let settings_lock = self
+                .settings
+                .lock()
+                .map_err(|_| anyhow::anyhow!("failed to lock the settings mutex"))?;
+
+            let identity_config = Config {
+                resolver_address: settings_lock.iotics.resolver_address.clone(),
+                token_duration: settings_lock.iotics.token_duration as i64,
+                user_did: settings_lock.iotics.user_did.clone(),
+                agent_did: settings_lock.iotics.agent_did.clone(),
+                agent_key_name: settings_lock.iotics.agent_key_name.clone(),
+                agent_name: settings_lock.iotics.agent_name.clone(),
+                agent_secret: settings_lock.iotics.agent_secret.clone(),
+            };
+
+            let token = create_agent_auth_token(&identity_config)?;
+            let token = format!("bearer {}", token);
+
+            token_lock.replace(token);
+        }
+
+        let token = token_lock.as_ref().expect("this should never happen");
+
+        Ok(token.clone())
+    }
 }

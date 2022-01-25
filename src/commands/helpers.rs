@@ -1,12 +1,14 @@
+use std::sync::Arc;
 use std::{io, marker};
 use yansi::Paint;
 
-use iotics_grpc_client::twin::delete_twin;
+use iotics_grpc_client::twin::crud::delete_twin;
+
+use crate::commands::settings::AuthBuilder;
 
 pub async fn delete_and_log_twin<W>(
     stdout: &'_ mut W,
-    host_address: &str,
-    token: &str,
+    auth_builder: Arc<AuthBuilder>,
     twin_did: &str,
     prev_index: usize,
     verbose: bool,
@@ -22,7 +24,7 @@ where
         writeln!(stdout)?;
     }
 
-    let result = delete_twin(host_address, token, twin_did).await;
+    let result = delete_twin(auth_builder, twin_did).await;
 
     match &result {
         Ok(_) => {

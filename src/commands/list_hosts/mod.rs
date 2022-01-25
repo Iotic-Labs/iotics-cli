@@ -5,3 +5,9 @@ pub mod list_hosts;
 mod messages;
 
 pub use list_hosts::*;
+
+#[derive(Clone)]
+pub enum NetworkType {
+    Prod,
+    Dev,
+}

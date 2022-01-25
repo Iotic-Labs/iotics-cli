@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 use std::{io, marker};
 
@@ -8,13 +9,12 @@ use iotics_grpc_client::search::{search, Filter};
 use log::error;
 use yansi::Paint;
 
+use crate::commands::list_hosts::host_actor::HostActor;
 use crate::commands::list_hosts::messages::{
     HostEmptyResultMessage, HostResultMessage, ProcessHostMessage,
 };
-use crate::commands::list_hosts::ListHostsArgs;
-use crate::commands::settings::{get_token, Settings};
-
-use super::host_actor::HostActor;
+use crate::commands::list_hosts::{ListHostsArgs, NetworkType};
+use crate::commands::settings::AuthBuilder;
 
 pub struct CoordinatorActor<W>
 where
@@ -22,7 +22,8 @@ where
 {
     stdout: Box<W>,
     opts: ListHostsArgs,
-    settings: Settings,
+    auth_builder: Arc<AuthBuilder>,
+    network_type: NetworkType,
     hosts_found: u64,
     hosts_handled: u64,
 }
@@ -31,11 +32,17 @@ impl<W> CoordinatorActor<W>
 where
     W: io::Write + marker::Send + marker::Sync,
 {
-    pub fn new(stdout: Box<W>, opts: ListHostsArgs, settings: Settings) -> Self {
+    pub fn new(
+        stdout: Box<W>,
+        opts: ListHostsArgs,
+        auth_builder: Arc<AuthBuilder>,
+        network_type: NetworkType,
+    ) -> Self {
         Self {
             stdout,
             opts,
-            settings,
+            auth_builder,
+            network_type,
             hosts_found: 0,
             hosts_handled: 0,
         }
@@ -60,15 +67,12 @@ where
         .expect("this should not happen");
         self.stdout.flush().expect("this should not happen");
 
-        let settings = self.settings.clone();
+        let auth_builder = self.auth_builder.clone();
 
         let fut = async move {
             let result = async move {
-                let token = get_token(&settings)?;
-
                 let mut search_stream = search(
-                    &settings.iotics.host_address,
-                    &token,
+                    auth_builder.clone(),
                     Filter {
                         properties: vec![Property {
                             key: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".to_string(),
@@ -88,11 +92,8 @@ where
                     match result {
                         Ok(page) => {
                             if let Some(payload) = page.payload {
-                                addr.try_send(ProcessHostMessage {
-                                    payload,
-                                    token: token.clone(),
-                                })
-                                .expect("failed to send ProcessHostMessage message");
+                                addr.try_send(ProcessHostMessage { payload })
+                                    .expect("failed to send ProcessHostMessage message");
                             }
                         }
                         Err(e) => {
@@ -130,13 +131,22 @@ where
 
     fn handle(&mut self, message: ProcessHostMessage, ctx: &mut Context<Self>) -> Self::Result {
         let addr = ctx.address();
-        let settings = self.settings.clone();
+        let auth_builder = self.auth_builder.clone();
         let opts = self.opts.clone();
+        let network_type = self.network_type.clone();
 
         let remote_host_id = message.payload.remote_host_id;
 
+        let dedicated_auth_builder = AuthBuilder::from(auth_builder);
+
         self.hosts_found += 1;
-        let host_actor = HostActor::new(addr, settings, opts, message.token, remote_host_id);
+        let host_actor = HostActor::new(
+            addr,
+            dedicated_auth_builder,
+            opts,
+            remote_host_id,
+            network_type,
+        );
         host_actor.start();
     }
 }

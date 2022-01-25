@@ -4,7 +4,8 @@ use std::{io, marker, thread};
 use structopt::StructOpt;
 
 use crate::commands::list_hosts::coordinator_actor::CoordinatorActor;
-use crate::commands::settings::Settings;
+use crate::commands::list_hosts::NetworkType;
+use crate::commands::settings::{AuthBuilder, Settings};
 use crate::RunnableCommand;
 
 #[derive(Debug, StructOpt, Clone)]
@@ -53,8 +54,16 @@ where
             let opts = self.opts.clone();
             let settings = self.settings;
 
+            let network_type = if settings.iotics.host_address.contains(".dev.") {
+                NetworkType::Dev
+            } else {
+                NetworkType::Prod
+            };
+
+            let auth_builder = AuthBuilder::new(settings);
+
             let execution = async {
-                let actor = CoordinatorActor::new(stdout, opts, settings);
+                let actor = CoordinatorActor::new(stdout, opts, auth_builder, network_type);
 
                 actor.start();
             };

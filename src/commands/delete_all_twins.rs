@@ -3,10 +3,10 @@ use std::{io, marker};
 use structopt::StructOpt;
 use yansi::Paint;
 
-use iotics_grpc_client::twin::list_all_twins;
+use iotics_grpc_client::twin::list::list_all_twins;
 
 use crate::commands::helpers::delete_and_log_twin;
-use crate::commands::settings::{get_token, Settings};
+use crate::commands::settings::{AuthBuilder, Settings};
 use crate::commands::RunnableCommand;
 
 #[derive(Debug, StructOpt)]
@@ -52,9 +52,9 @@ where
     W: io::Write + marker::Send,
 {
     async fn run(mut self) -> Result<(), anyhow::Error> {
-        let token = get_token(&self.settings)?;
+        let auth_builder = AuthBuilder::new(self.settings.clone());
 
-        let response = list_all_twins(&self.settings.iotics.host_address, &token).await;
+        let response = list_all_twins(auth_builder.clone()).await;
 
         match response {
             Ok(response) => {
@@ -75,8 +75,7 @@ where
                     for twin_did in twins_dids {
                         let result = delete_and_log_twin(
                             self.stdout,
-                            &self.settings.iotics.host_address,
-                            &token,
+                            auth_builder.clone(),
                             &twin_did,
                             self.twins_found,
                             self.opts.verbose,
