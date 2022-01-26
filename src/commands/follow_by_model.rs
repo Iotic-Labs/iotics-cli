@@ -65,22 +65,25 @@ where
     async fn run(self) -> Result<(), anyhow::Error> {
         let auth_builder = AuthBuilder::new(self.settings.clone());
 
-        let mut search_stream = search(
-            auth_builder.clone(),
-            Filter {
-                properties: vec![Property {
-                    key: "https://data.iotics.com/app#model".to_string(),
-                    value: Some(Value::UriValue(Uri {
-                        value: self.opts.model_did.clone(),
-                    })),
-                }],
-                location: None,
-                text: None,
-            },
-            Scope::Global,
-            None,
-        )
-        .await?;
+        let filter = Filter {
+            properties: vec![Property {
+                key: "https://data.iotics.com/app#model".to_string(),
+                value: Some(Value::UriValue(Uri {
+                    value: self.opts.model_did.clone(),
+                })),
+            }],
+            location: None,
+            text: None,
+        };
+
+        writeln!(
+            self.stdout,
+            "Search criteria {}",
+            Paint::blue(&format!("{:?}", &filter)),
+        )?;
+        self.stdout.flush()?;
+
+        let mut search_stream = search(auth_builder.clone(), filter, Scope::Global, None).await?;
 
         let mut count = 0;
         let mut follow_handles = Vec::new();
@@ -219,7 +222,7 @@ where
                                     break;
                                 }
                             }
-                        } else {
+                        } else if self.opts.verbose {
                             writeln!(
                                 self.stdout,
                                 "Found 0 twins from {:?}",
