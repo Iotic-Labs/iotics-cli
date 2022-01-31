@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{io, marker};
 
-use actix::{Actor, ActorContext, AsyncContext, Context, Handler, System, WrapFuture};
+use actix::{Actor, AsyncContext, Context, Handler, System, WrapFuture};
 
 use iotics_grpc_client::common::{Property, Scope, Uri, Value};
 use iotics_grpc_client::search::{search, Filter};
@@ -157,7 +157,7 @@ where
 {
     type Result = ();
 
-    fn handle(&mut self, message: HostResultMessage, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, message: HostResultMessage, _: &mut Context<Self>) -> Self::Result {
         self.hosts_handled += 1;
 
         let twins_count = match message.twins_count {
@@ -176,10 +176,6 @@ where
         )
         .expect("this should not happen");
         self.stdout.flush().expect("this should not happen");
-
-        if self.hosts_found == self.hosts_handled {
-            ctx.stop();
-        }
     }
 }
 
@@ -189,11 +185,7 @@ where
 {
     type Result = ();
 
-    fn handle(&mut self, _: HostEmptyResultMessage, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, _: HostEmptyResultMessage, _: &mut Context<Self>) -> Self::Result {
         self.hosts_handled += 1;
-
-        if self.hosts_found == self.hosts_handled {
-            ctx.stop();
-        }
     }
 }

@@ -187,13 +187,9 @@ async fn get_twin_count(
                 let update_auth_builder = auth_builder.clone();
                 update_auth_builder.update_host(host_url)?;
 
-                let response = list_all_twins(auth_builder).await?;
+                let twins = list_all_twins(auth_builder).await?;
 
-                if let Some(payload) = response.payload {
-                    Ok(Some(payload.twins.len() as usize))
-                } else {
-                    Ok(Some(0))
-                }
+                Ok(Some(twins.len() as usize))
             }
             false => Ok(None),
         }

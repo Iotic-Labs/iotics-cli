@@ -4,7 +4,8 @@ use structopt::StructOpt;
 use yansi::Paint;
 
 use iotics_grpc_client::common::{Property, Scope, Uri, Value};
-use iotics_grpc_client::search::{search, Filter, SEARCH_PAGE_SIZE};
+use iotics_grpc_client::search::{search, Filter};
+use iotics_grpc_client::twin::PAGE_SIZE;
 
 use crate::commands::helpers::delete_and_log_twin;
 use crate::commands::settings::{AuthBuilder, Settings};
@@ -80,7 +81,7 @@ where
             match response {
                 Ok(page) => {
                     if let Some(payload) = page.payload {
-                        if payload.twins.len() < SEARCH_PAGE_SIZE as usize {
+                        if payload.twins.len() < PAGE_SIZE as usize {
                             // this must be the last page, close the stream
                             stream.close();
                         }

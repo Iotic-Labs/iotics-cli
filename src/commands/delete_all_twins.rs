@@ -57,46 +57,43 @@ where
         let response = list_all_twins(auth_builder.clone()).await;
 
         match response {
-            Ok(response) => {
-                if let Some(payload) = response.payload {
-                    let twins_dids = payload
-                        .twins
-                        .into_iter()
-                        .map(|twin| twin.id.expect("this should not happen").value)
-                        .collect::<Vec<String>>();
+            Ok(twins) => {
+                let twins_dids = twins
+                    .into_iter()
+                    .map(|twin| twin.id.expect("this should not happen").value)
+                    .collect::<Vec<String>>();
 
-                    writeln!(
+                writeln!(
+                    self.stdout,
+                    "Found {} twins. Deleting...",
+                    Paint::yellow(twins_dids.len()),
+                )?;
+                self.stdout.flush()?;
+
+                for twin_did in twins_dids {
+                    let result = delete_and_log_twin(
                         self.stdout,
-                        "Found {} twins. Deleting...",
-                        Paint::yellow(twins_dids.len()),
-                    )?;
-                    self.stdout.flush()?;
+                        auth_builder.clone(),
+                        &twin_did,
+                        self.twins_found,
+                        self.opts.verbose,
+                    )
+                    .await;
 
-                    for twin_did in twins_dids {
-                        let result = delete_and_log_twin(
-                            self.stdout,
-                            auth_builder.clone(),
-                            &twin_did,
-                            self.twins_found,
-                            self.opts.verbose,
-                        )
-                        .await;
+                    self.twins_found += 1;
 
-                        self.twins_found += 1;
-
-                        if result.is_ok() {
-                            self.twins_deleted += 1;
-                        }
+                    if result.is_ok() {
+                        self.twins_deleted += 1;
                     }
-
-                    writeln!(self.stdout)?;
-                    writeln!(
-                        self.stdout,
-                        "Deleted {} twins.",
-                        Paint::red(self.twins_deleted),
-                    )?;
-                    self.stdout.flush()?;
                 }
+
+                writeln!(self.stdout)?;
+                writeln!(
+                    self.stdout,
+                    "Deleted {} twins.",
+                    Paint::red(self.twins_deleted),
+                )?;
+                self.stdout.flush()?;
             }
             Err(e) => {
                 writeln!(self.stdout, "{:?}", Paint::red(e))?;
