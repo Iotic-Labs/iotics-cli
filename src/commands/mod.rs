@@ -4,6 +4,7 @@ use structopt::StructOpt;
 
 pub mod delete_all_twins;
 pub mod delete_twins_by_model;
+pub mod did_kg;
 pub mod follow_by_model;
 mod helpers;
 pub mod list_hosts;
@@ -11,7 +12,7 @@ mod settings;
 
 use self::{
     delete_all_twins::DeleteAllTwinsArgs, delete_twins_by_model::DeleteTwinsByModelArgs,
-    follow_by_model::FollowByModelArgs, list_hosts::ListHostsArgs,
+    did_kg::DidKGArgs, follow_by_model::FollowByModelArgs, list_hosts::ListHostsArgs,
 };
 
 #[derive(Debug, StructOpt)]
@@ -25,6 +26,8 @@ pub enum Command {
     FollowByModel(FollowByModelArgs),
     /// List all hosts that are found in the network
     ListHosts(ListHostsArgs),
+    /// Generates the DID Knowledge Base
+    DidKG(DidKGArgs),
 }
 
 #[async_trait]

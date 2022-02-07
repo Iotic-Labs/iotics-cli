@@ -7,6 +7,7 @@ mod commands;
 
 use commands::delete_all_twins::DeleteAllTwins;
 use commands::delete_twins_by_model::DeleteTwinsByModel;
+use commands::did_kg::DidKG;
 use commands::list_hosts::ListHosts;
 use commands::{Command, RunnableCommand};
 
@@ -75,6 +76,22 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::ListHosts(args) => {
             let command = ListHosts::new(stdout, args);
+
+            match command {
+                Ok(command) => {
+                    let result = command.run().await;
+
+                    if let Err(e) = result {
+                        error!("{:?}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("{:?}", e);
+                }
+            }
+        }
+        Command::DidKG(args) => {
+            let command = DidKG::new(stdout, args);
 
             match command {
                 Ok(command) => {

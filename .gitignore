@@ -1,2 +1,4 @@
 /legacy
 /target
+/resolver/*
+/export/*
