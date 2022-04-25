@@ -121,7 +121,7 @@ where
                                     let twin_did = followed_twin_id.value.clone();
 
                                     let target = format!(
-                                        "Follower {:4} {} / {}",
+                                        "iotics_cli::Follower {:4} {} / {}",
                                         Paint::yellow(count + 1),
                                         Paint::blue(&twin_did),
                                         Paint::blue(&followed_feed)
@@ -168,13 +168,26 @@ where
 
                                                                     match json_data {
                                                                         Ok(json_data) => {
-                                                                            info!(
-                                                                                target: &target,
-                                                                                "got {:?}",
-                                                                                Paint::green(
-                                                                                    json_data
-                                                                                )
-                                                                            );
+                                                                            if verbose {
+                                                                                info!(
+                                                                                    target: &target,
+                                                                                    "got data with timestamp {:?} > {:?}",
+                                                                                    Paint::yellow(
+                                                                                        feed_data.occurred_at,
+                                                                                    ),
+                                                                                    Paint::green(
+                                                                                        json_data
+                                                                                    )
+                                                                                );
+                                                                            } else {
+                                                                                info!(
+                                                                                    target: &target,
+                                                                                    "got data with timestamp {:?}",
+                                                                                    Paint::yellow(
+                                                                                        feed_data.occurred_at,
+                                                                                    ),
+                                                                                );
+                                                                            }
                                                                         }
                                                                         Err(e) => {
                                                                             error!(

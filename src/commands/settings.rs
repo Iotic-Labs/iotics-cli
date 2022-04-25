@@ -29,27 +29,36 @@ pub struct IoticsSettings {
 
 impl Settings {
     pub fn new(config_name: &str, stdout: &mut dyn io::Write) -> Result<Settings, anyhow::Error> {
-        let mut settings = config::Config::default();
-        let base_path = std::env::current_dir().expect("Failed to determine the current directory");
+        let base_path = std::env::current_dir().expect("failed to determine the current directory");
         let configuration_directory = base_path.join("configuration");
 
         writeln!(stdout, "Loading base configuration...")?;
         stdout.flush()?;
+
+        let mut builder = config::Config::builder();
+
         // Read the "base" configuration file
-        settings.merge(config::File::from(configuration_directory.join("base")).required(true))?;
+        let config_path = configuration_directory.join("base");
+        builder = builder.add_source(config::File::new(
+            config_path.to_str().expect("this should never happen"),
+            config::FileFormat::Yaml,
+        ));
 
         // Layer on the config-specific values.
-        let mut config_path = configuration_directory.join(config_name);
-        config_path.set_extension("yaml");
         writeln!(
             stdout,
             "Loading configuration {:#?}...",
             Paint::blue(&config_path),
         )?;
         stdout.flush()?;
-        settings.merge(config::File::from(config_path).required(true))?;
 
-        let settings: Settings = settings.try_into()?;
+        let config_path = configuration_directory.join(config_name);
+        builder = builder.add_source(config::File::new(
+            config_path.to_str().expect("this should never happen"),
+            config::FileFormat::Yaml,
+        ));
+
+        let settings = builder.build()?.try_deserialize::<Settings>()?;
 
         writeln!(
             stdout,
