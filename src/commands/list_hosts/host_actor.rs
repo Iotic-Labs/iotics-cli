@@ -123,7 +123,7 @@ async fn get_host_url(
         if let Some(captures) = re.captures(&output) {
             let url = captures
                 .get(1)
-                .ok_or(anyhow::anyhow!("could not find host url"))?
+                .ok_or_else(|| anyhow::anyhow!("could not find host url"))?
                 .as_str()
                 .to_string();
             Ok(url)

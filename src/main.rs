@@ -1,4 +1,3 @@
-use commands::follow_by_model::FollowByModel;
 use log::{error, LevelFilter};
 use std::io::stdout;
 use structopt::StructOpt;
@@ -7,6 +6,8 @@ mod commands;
 
 use commands::delete_all_twins::DeleteAllTwins;
 use commands::delete_twins_by_model::DeleteTwinsByModel;
+use commands::describe_twin::DescribeTwin;
+use commands::follow_by_model::FollowByModel;
 use commands::list_hosts::ListHosts;
 use commands::{Command, RunnableCommand};
 
@@ -18,7 +19,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(LevelFilter::Info);
 
     pretty_env_logger::formatted_timed_builder()
-        .filter_level(log_level)
+        .filter(Some("iotics_"), log_level)
         .init();
 
     let mut stdout = stdout();
@@ -75,6 +76,22 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::ListHosts(args) => {
             let command = ListHosts::new(stdout, args);
+
+            match command {
+                Ok(command) => {
+                    let result = command.run().await;
+
+                    if let Err(e) = result {
+                        error!("{:?}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("{:?}", e);
+                }
+            }
+        }
+        Command::DescribeTwin(args) => {
+            let command = DescribeTwin::new(&mut stdout, args);
 
             match command {
                 Ok(command) => {

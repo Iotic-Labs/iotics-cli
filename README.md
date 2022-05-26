@@ -22,6 +22,7 @@ cargo run -- --help
 ```
 
 ```bash
+cargo run -- describe-twin --help
 cargo run -- delete-twins-by-model --help
 cargo run -- delete-all-twins --help
 cargo run -- follow-by-model --help
